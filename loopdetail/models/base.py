@@ -386,6 +386,23 @@ class LoopAdapter:
             kw.update(stop_strings=list(stop_strings), tokenizer=self.tok.tok)
         return kw
 
+    def max_context(self) -> int | None:
+        """Context limit from the config (smallest of max_position_embeddings / block_size /
+        n_positions; options.max_context overrides)."""
+        if self.options.get("max_context"):
+            return int(self.options["max_context"])
+        cfg = getattr(self.model, "config", None)
+        vals = [getattr(cfg, n, None) for n in ("max_position_embeddings", "block_size", "n_positions")]
+        vals = [int(v) for v in vals if isinstance(v, int) and v > 0]
+        return min(vals) if vals else None
+
+    @torch.no_grad()
+    def embed_at(self, input_ids: torch.Tensor, positions: Sequence[int]) -> torch.Tensor:
+        """Input-embedding vectors [P, d] at `positions` (the 'layer -1' probe baseline)."""
+        if not hasattr(self.model, "get_input_embeddings"):
+            raise AdapterAssumptionError(f"[{self.name}] model has no get_input_embeddings()")
+        return self.model.get_input_embeddings()(input_ids)[0, list(positions)]
+
     def describe(self) -> dict[str, Any]:
         return {
             "name": self.name, "adapter": type(self).__name__, "loop_axis": self.loop_axis,
@@ -394,6 +411,7 @@ class LoopAdapter:
             "n_prelude": len(self.prelude), "n_coda": len(self.coda),
             "kv_mode": "fused_qkv" if self.paths.qkv_proj else "separate_kv",
             "dtype": str(next(self.model.parameters()).dtype), "device": str(self.device),
+            "max_context": self.max_context(),
         }
 
 

@@ -16,6 +16,12 @@ INFO_COLOR = {"detail": SLOTS[0], "gist": SLOTS[1]}
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
+def _level_order(rows: list[dict]) -> list[str]:
+    """Levels sorted by (N, fillers_per_fact, name)."""
+    seen = {r["level"]: (r["N"], r.get("fillers_per_fact", 0), r["level"]) for r in rows}
+    return sorted(seen, key=lambda k: seen[k])
+
+
 def _style(ax) -> None:
     ax.grid(True, color=GRID, linewidth=0.6)
     ax.set_axisbelow(True)
@@ -25,17 +31,17 @@ def _style(ax) -> None:
 
 
 def accuracy_curves(table: list[dict], out: Path, axis_name: str, title: str) -> list[Path]:
-    """ExpB: accuracy vs t, detail vs gist, one panel per N, one figure per family."""
+    """ExpB: accuracy vs t, detail vs gist, one panel per level, one figure per family."""
     if len({r["t"] for r in table}) == 1:
         return accuracy_bars(table, out, title)
     paths = []
     for fam in sorted({r["family"] for r in table}):
         rows = [r for r in table if r["family"] == fam]
-        Ns = sorted({r["N"] for r in rows})
-        fig, axes = plt.subplots(1, len(Ns), figsize=(3.2 * len(Ns), 3.0), sharey=True, squeeze=False)
-        for ax, N in zip(axes[0], Ns):
+        levels = _level_order(rows)
+        fig, axes = plt.subplots(1, len(levels), figsize=(3.2 * len(levels), 3.0), sharey=True, squeeze=False)
+        for ax, level in zip(axes[0], levels):
             for info in ("detail", "gist"):
-                rs = sorted((r for r in rows if r["N"] == N and r["info_type"] == info), key=lambda r: r["t"])
+                rs = sorted((r for r in rows if r["level"] == level and r["info_type"] == info), key=lambda r: r["t"])
                 if not rs:
                     continue
                 t = [r["t"] for r in rs]
@@ -46,7 +52,7 @@ def accuracy_curves(table: list[dict], out: Path, axis_name: str, title: str) ->
                 if ext:
                     ax.axvspan(min(ext) - 0.5, max(ext) + 0.5, color=GRID, alpha=0.5, lw=0)
             ax.axhline(0.25, color=MUTED, ls="--", lw=1)
-            ax.set_title(f"N = {N}", fontsize=9, color=INK)
+            ax.set_title(level, fontsize=9, color=INK)
             ax.set_xlabel(axis_name, fontsize=8, color=MUTED)
             if max(r["t"] for r in rows) > 8:
                 ax.set_xscale("log", base=2)
@@ -68,10 +74,10 @@ def accuracy_bars(table: list[dict], out: Path, title: str) -> list[Path]:
     paths = []
     for fam in sorted({r["family"] for r in table}):
         rows = [r for r in table if r["family"] == fam]
-        Ns = sorted({r["N"] for r in rows})
+        Ns = _level_order(rows)
         fig, ax = plt.subplots(figsize=(1.4 * len(Ns) + 2.5, 3.0))
         for k, info in enumerate(("detail", "gist")):
-            rs = {r["N"]: r for r in rows if r["info_type"] == info}
+            rs = {r["level"]: r for r in rows if r["info_type"] == info}
             x = np.arange(len(Ns)) + (k - 0.5) * 0.38
             acc = np.array([rs[N]["acc"] for N in Ns])
             err = np.array([[rs[N]["acc"] - rs[N]["acc_ci95"][0] for N in Ns],
@@ -79,7 +85,7 @@ def accuracy_bars(table: list[dict], out: Path, title: str) -> list[Path]:
             ax.bar(x, acc, 0.34, color=INFO_COLOR[info], label=info)
             ax.errorbar(x, acc, yerr=err, fmt="none", ecolor=INK, elinewidth=1, capsize=2)
         ax.axhline(0.25, color=MUTED, ls="--", lw=1)
-        ax.set_xticks(range(len(Ns)), [f"N = {N}" for N in Ns], fontsize=8)
+        ax.set_xticks(range(len(Ns)), Ns, fontsize=8)
         ax.set_ylim(0, 1.05)
         ax.set_ylabel("forced-choice accuracy", fontsize=8, color=MUTED)
         _style(ax)

@@ -68,7 +68,7 @@ def test_interaction_recovers_sign():
             for info, slope in (("detail", -0.6), ("gist", 0.2)):
                 p = 1 / (1 + np.exp(-(1.0 + u + slope * lt)))
                 rows.append({"context_id": f"c{c}", "item_id": f"c{c}", "t": t, "lt": lt - 1.5,
-                             "info_type": info, "correct": int(rng.random() < p), "family": "box", "N": 8})
+                             "info_type": info, "correct": int(rng.random() < p), "family": "box", "level": "N8"})
     df = pd.DataFrame(rows)
     res = loop_info_interaction(df)
     assert res["gee"]["coef"] < 0 and res["gee"]["ci95"][1] < 0
@@ -90,6 +90,30 @@ def test_probe_on_synthetic_features():
     assert res["acc"] > 0.95 and res["acc_ci95"][0] > 0.9
     noise = probe_cell(rng.normal(size=(n, d)), y.astype(str), types, groups, test, [0.1, 1.0], 3, 0, n_boot=50)
     assert noise["acc"] < 0.45
+
+
+def test_torch_probe_matches_sklearn():
+    from sklearn.linear_model import LogisticRegression
+
+    from loopdetail.analysis.probes import fit_logreg_batched, probe
+
+    rng = np.random.default_rng(3)
+    n, d, k = 300, 12, 5
+    y = rng.integers(0, k, n)
+    X = rng.normal(0, 1, (n, d)) + np.eye(k, d)[y] * 1.5
+    Xs = (X - X.mean(0)) / X.std(0, ddof=1)
+    for C in (0.05, 1.0):
+        W, b = fit_logreg_batched(torch.tensor(Xs, dtype=torch.float32)[None], torch.tensor(y),
+                                  torch.ones(1, n, dtype=torch.bool), k, [C], max_iter=500)
+        p_torch = torch.softmax(torch.tensor(Xs, dtype=torch.float32) @ W[0, 0] + b[0, 0], -1).numpy()
+        p_sk = LogisticRegression(C=C, max_iter=5000, tol=1e-10).fit(Xs, y).predict_proba(Xs)
+        assert np.abs(p_torch - p_sk).max() < 2e-3
+    groups = np.repeat(np.arange(n // 3), 3)
+    tr = groups < 80
+    args = (X[tr], y[tr], groups[tr], X[~tr], y[~tr], k, [0.01, 0.1, 1.0], 4, 0)
+    a, b2 = probe(*args, backend="torch"), probe(*args, backend="sklearn")
+    assert a.C == b2.C and abs(a.acc - b2.acc) <= 0.02
+    assert max(abs(a.cv_acc[c] - b2.cv_acc[c]) for c in a.cv_acc) <= 0.02
 
 
 def test_control_labels_and_folds():

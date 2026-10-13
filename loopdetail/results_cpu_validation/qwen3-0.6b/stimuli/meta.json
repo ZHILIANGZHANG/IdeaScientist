@@ -1,6 +1,6 @@
 {
-  "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3",
-  "timestamp_utc": "2026-10-13T12:47:35+00:00",
+  "git_hash": "a64b19c5a1eb1fbe1bba182b00159d47aab45435-dirty",
+  "timestamp_utc": "2026-10-13T14:57:44+00:00",
   "host": "vm",
   "versions": {
     "python": "3.13.16",
@@ -12,18 +12,95 @@
   },
   "config": {
     "families": [
-      "box",
-      "codes"
+      "box_explicit",
+      "box"
     ],
-    "n_values": [
-      4,
-      8,
-      16
+    "levels": [
+      {
+        "name": "N4",
+        "N": 4
+      },
+      {
+        "name": "N128",
+        "N": 128
+      },
+      {
+        "name": "N64_conf",
+        "N": 64,
+        "labels": "confusable"
+      },
+      {
+        "name": "N128_conf",
+        "N": 128,
+        "labels": "confusable"
+      },
+      {
+        "name": "N128_conf_fill1",
+        "N": 128,
+        "labels": "confusable",
+        "fillers": 1
+      }
     ],
-    "n_contexts": 48,
+    "n_contexts": 40,
     "seed": 1234,
     "chat": false,
     "tokenizer": "qwen3-0.6b",
-    "n_categories": 8
+    "n_categories": 8,
+    "max_context": 40960
+  },
+  "built": [
+    [
+      "box",
+      "N128"
+    ],
+    [
+      "box",
+      "N128_conf"
+    ],
+    [
+      "box",
+      "N128_conf_fill1"
+    ],
+    [
+      "box",
+      "N4"
+    ],
+    [
+      "box",
+      "N64_conf"
+    ],
+    [
+      "box_explicit",
+      "N128"
+    ],
+    [
+      "box_explicit",
+      "N128_conf"
+    ],
+    [
+      "box_explicit",
+      "N128_conf_fill1"
+    ],
+    [
+      "box_explicit",
+      "N4"
+    ],
+    [
+      "box_explicit",
+      "N64_conf"
+    ]
+  ],
+  "skipped_levels": [],
+  "max_prompt_tokens": {
+    "box_explicit_N4": 74,
+    "box_explicit_N128": 1471,
+    "box_explicit_N64_conf": 925,
+    "box_explicit_N128_conf": 1821,
+    "box_explicit_N128_conf_fill1": 2768,
+    "box_N4": 54,
+    "box_N128": 831,
+    "box_N64_conf": 605,
+    "box_N128_conf": 1181,
+    "box_N128_conf_fill1": 2128
   }
 }

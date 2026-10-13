@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "git_hash": "a64b19c5a1eb1fbe1bba182b00159d47aab45435-dirty",
+    "timestamp_utc": "2026-10-13T15:17:53+00:00",
+    "host": "vm",
+    "versions": {
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "transformers": "5.19.0",
+      "numpy": "2.5.4",
+      "sklearn": "1.9.1",
+      "statsmodels": "0.15.0"
+    },
+    "config": {
+      "model": {
+        "hf_id": "Qwen/Qwen3-0.6B",
+        "adapter": "hf",
+        "attn_implementation": "sdpa",
+        "dtype": "bfloat16",
+        "n_loops_trained": 1,
+        "loops_eval": [
+          1
+        ],
+        "probe_loops": [
+          1
+        ],
+        "prompt_format": "plain",
+        "name": "qwen3-0.6b"
+      },
+      "profile": "cpu_validation",
+      "experiment": "calibrate",
+      "exp_config": {
+        "families": [
+          "box_explicit"
+        ],
+        "contexts_per_level": 12,
+        "band": [
+          0.4,
+          0.9
+        ]
+      },
+      "chat": false,
+      "adapter": {
+        "name": "qwen3-0.6b",
+        "adapter": "HFDecoderAdapter",
+        "loop_axis": "layer",
+        "n_loops_trained": 1,
+        "n_layers_per_loop": 28,
+        "d_model": 1024,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "n_prelude": 0,
+        "n_coda": 0,
+        "kv_mode": "separate_kv",
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "max_context": 40960
+      },
+      "calibrated_levels": null
+    }
+  },
+  "T": 1,
+  "band": [
+    0.4,
+    0.9
+  ],
+  "pilot_contexts": 12,
+  "table": [
+    {
+      "family": "box_explicit",
+      "level": "N4",
+      "N": 4,
+      "fillers": 0,
+      "quartiles": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "T": 1,
+      "n": 12,
+      "prompt_tokens": 73,
+      "detail_acc": 1.0,
+      "gist_acc": 1.0
+    },
+    {
+      "family": "box_explicit",
+      "level": "N128",
+      "N": 128,
+      "fillers": 0,
+      "quartiles": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "T": 1,
+      "n": 12,
+      "prompt_tokens": 1467,
+      "detail_acc": 1.0,
+      "gist_acc": 0.9166666666666666
+    },
+    {
+      "family": "box_explicit",
+      "level": "N64_conf",
+      "N": 64,
+      "fillers": 0,
+      "quartiles": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "T": 1,
+      "n": 12,
+      "prompt_tokens": 925,
+      "detail_acc": 0.9166666666666666,
+      "gist_acc": 1.0
+    },
+    {
+      "family": "box_explicit",
+      "level": "N128_conf",
+      "N": 128,
+      "fillers": 0,
+      "quartiles": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "T": 1,
+      "n": 12,
+      "prompt_tokens": 1821,
+      "detail_acc": 1.0,
+      "gist_acc": 0.8333333333333334
+    },
+    {
+      "family": "box_explicit",
+      "level": "N128_conf_fill1",
+      "N": 128,
+      "fillers": 1,
+      "quartiles": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "T": 1,
+      "n": 12,
+      "prompt_tokens": 2768,
+      "detail_acc": 0.8333333333333334,
+      "gist_acc": 0.6666666666666666
+    }
+  ],
+  "selected": {
+    "box_explicit": [
+      "N4",
+      "N128_conf_fill1"
+    ],
+    "box": [
+      "N4",
+      "N128_conf_fill1"
+    ]
+  },
+  "notes": {
+    "box_explicit": "",
+    "box": "uses the selection of box_explicit"
+  },
+  "skipped_levels": []
+}

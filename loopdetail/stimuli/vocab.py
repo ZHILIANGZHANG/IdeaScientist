@@ -54,3 +54,28 @@ _LABEL_STOP = {"AM", "AN", "AS", "AT", "BE", "BY", "DO", "GO", "HE", "IF", "IN",
                "XX", "AA", "BB", "CC", "DD", "EE", "FF", "GG", "HH", "JJ", "KK", "LL", "MM",
                "NN", "PP", "QQ", "RR", "SS", "TT", "UU", "VV", "WW", "YY", "ZZ"}
 BOX_LABELS = [a + b for a in _LETTERS for b in _LETTERS if a + b not in _LABEL_STOP]
+
+# Neutral filler sentences inserted between facts to lengthen the fact -> query distance.
+# They contain no item, category, digit or label words.
+FILLERS = [
+    "Nothing else happened that morning.",
+    "The room was quiet for a while.",
+    "Someone walked past the door and left.",
+    "The light outside slowly changed.",
+    "A short break followed after that.",
+    "Nobody said anything for some time.",
+    "The clock on the wall kept ticking.",
+    "Later, the hallway became busy again.",
+    "It was an ordinary and calm afternoon.",
+    "The window was left open overnight.",
+    "Everyone waited patiently in silence.",
+    "There was a faint sound far away.",
+    "The meeting ended earlier than expected.",
+    "Then the evening came without news.",
+    "The notes were filed away carefully.",
+    "After a pause, the list continued.",
+]
+
+# Codes-family people are "First Last" so that N up to 128 has distinct labels.
+SURNAMES = ["Brown", "Smith", "Lee", "Clark", "Hall", "Young", "King", "Wright", "Green",
+            "Baker", "Adams", "Nelson", "Hill", "Moore", "Turner", "Parker"]

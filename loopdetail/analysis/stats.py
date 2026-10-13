@@ -112,14 +112,14 @@ def loop_trend(df, loop_col: str = "lt", group_col: str = "context_id") -> dict[
 
 
 def adjacent_mcnemar(df, item_col: str = "item_id") -> list[dict[str, Any]]:
-    """Exact McNemar between adjacent loop counts, per (family, info_type, N)."""
+    """Exact McNemar between adjacent loop counts, per (family, info_type, level)."""
     out = []
-    for (fam, info, N), d in df.groupby(["family", "info_type", "N"]):
+    for (fam, info, level), d in df.groupby(["family", "info_type", "level"]):
         ts = sorted(d["t"].unique())
         piv = d.pivot_table(index=item_col, columns="t", values="correct")
         for t0, t1 in zip(ts[:-1], ts[1:]):
             pair = piv[[t0, t1]].dropna()
             r = mcnemar_exact(pair[t0].values, pair[t1].values)
-            out.append({"family": fam, "info_type": info, "N": int(N), "t_from": int(t0), "t_to": int(t1),
+            out.append({"family": fam, "info_type": info, "level": level, "t_from": int(t0), "t_to": int(t1),
                         "acc_from": float(pair[t0].mean()), "acc_to": float(pair[t1].mean()), **r})
     return out

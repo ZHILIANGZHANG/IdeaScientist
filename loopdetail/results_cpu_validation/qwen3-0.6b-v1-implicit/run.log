@@ -1,0 +1,31 @@
+12:47:34 INFO loopdetail: loaded qwen3-0.6b on cpu in 30.6s: {'name': 'qwen3-0.6b', 'adapter': 'HFDecoderAdapter', 'loop_axis': 'layer', 'n_loops_trained': 1, 'n_layers_per_loop': 28, 'd_model': 1024, 'n_kv_heads': 8, 'head_dim': 128, 'n_prelude': 0, 'n_coda': 0, 'kv_mode': 'separate_kv', 'dtype': 'torch.float32', 'device': 'cpu'}
+12:47:34 INFO loopdetail: === sanity (cpu_validation) ===
+12:47:35 INFO loopdetail: S1 N/A
+12:47:35 INFO loopdetail: S2 SKIPPED
+12:47:41 INFO loopdetail: S3 PASS
+12:48:29 INFO loopdetail: S4 PASS
+12:49:50 INFO loopdetail: S5 PASS
+12:49:50 INFO loopdetail: sanity overall: PASS
+12:49:50 INFO loopdetail: === sanity finished in 2.3 min ===
+12:49:50 INFO loopdetail: === B (cpu_validation) ===
+12:50:59 INFO loopdetail: B box N=4 25/32
+12:52:22 INFO loopdetail: B box N=8 25/32
+12:54:01 INFO loopdetail: B box N=16 25/32
+12:59:11 INFO loopdetail: B codes N=4 25/32
+13:06:22 INFO loopdetail: B codes N=8 25/32
+13:14:45 INFO loopdetail: B codes N=16 25/32
+13:16:45 INFO loopdetail: === B finished in 26.9 min ===
+13:16:45 INFO loopdetail: === A1 (cpu_validation) ===
+13:18:37 INFO loopdetail: A1 box: features {'k': (576, 1, 28, 1024), 'v': (576, 1, 28, 1024), 'hidden': (576, 1, 28, 1024)}
+13:33:25 INFO loopdetail: A1 box k probes done
+13:48:05 INFO loopdetail: A1 box v probes done
+14:02:52 INFO loopdetail: A1 box hidden probes done
+14:02:52 INFO loopdetail: === A1 finished in 46.1 min ===
+14:02:52 INFO loopdetail: === A2 (cpu_validation) ===
+14:04:32 INFO loopdetail: A2 box N=4 done (384 rows)
+14:06:03 INFO loopdetail: A2 box N=8 done (384 rows)
+14:08:10 INFO loopdetail: A2 box N=16 done (384 rows)
+14:08:10 INFO loopdetail: === A2 finished in 5.3 min ===
+14:12:47 INFO loopdetail: loaded qwen3-0.6b on cpu in 22.8s: {'name': 'qwen3-0.6b', 'adapter': 'HFDecoderAdapter', 'loop_axis': 'layer', 'n_loops_trained': 1, 'n_layers_per_loop': 28, 'd_model': 1024, 'n_kv_heads': 8, 'head_dim': 128, 'n_prelude': 0, 'n_coda': 0, 'kv_mode': 'separate_kv', 'dtype': 'torch.float32', 'device': 'cpu'}
+14:12:47 INFO loopdetail: === A2 (cpu_validation) ===
+14:12:47 INFO loopdetail: === A2 finished in 0.0 min ===

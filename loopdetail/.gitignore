@@ -1,6 +1,10 @@
+# outputs: only summaries and per-item rows are committed (results_cpu_validation/)
 results/
 __pycache__/
 *.pyc
 .pytest_cache/
-results_cpu_validation/**/A1/features/
 !results_cpu_validation/**/*.jsonl
+**/features/
+*.pt
+*.tmp
+**/stimuli/*.jsonl

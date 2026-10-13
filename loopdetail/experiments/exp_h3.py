@@ -23,7 +23,7 @@ from ..scoring import candidate_token_ids, choice_stats, score_with
 from ..stimuli.generate import variant_values
 from ..stimuli.render import INFO_TYPES, render
 from ..utils import iter_jsonl_glob, mark_done, parse_layer_selector, shard_done, write_jsonl
-from .common import RunContext
+from .common import RunContext, cell_fields
 
 
 def instance_rows(ctx: RunContext, inst: dict, T: int, target_loops: list[int], cfg: dict,
@@ -53,8 +53,7 @@ def instance_rows(ctx: RunContext, inst: dict, T: int, target_loops: list[int], 
 
         base_lp = score_with(lambda ids, pos: ad.readout_logits(ids, T, pos), prep.ids, cand, ad.device)
         base = choice_stats(base_lp, prep.answer)
-        common = {"item_id": inst["id"], "family": inst["family"], "N": inst["N"],
-                  "info_type": info, "T": T, "answer": prep.answer}
+        common = {**cell_fields(inst), "info_type": info, "T": T, "answer": prep.answer}
         rows.append({**common, "condition": "none", "target": "-", **base, "delta_margin": 0.0})
 
         def add(condition: str, target: str, patch) -> None:
@@ -104,15 +103,15 @@ def run(ctx: RunContext) -> dict:
     target_loops = [int(t) for t in cfg.get("target_loops", ctx.spec.get("h3_target_loops", range(2, T + 1)))]
     out = ctx.exp_dir("H3")
     gen = torch.Generator().manual_seed(ctx.seed)
-    for fam, N, insts in ctx.cells("H3"):
-        shard = out / "rows" / f"{fam}_N{N}.jsonl"
+    for fam, level, insts in ctx.cells("H3"):
+        shard = out / "rows" / f"{fam}_{level['name']}.jsonl"
         if shard_done(shard):
             continue
         rows = []
         for i, inst in enumerate(insts):
             rows += instance_rows(ctx, inst, T, target_loops, cfg, gen)
             if (i + 1) % 10 == 0:
-                ctx.logger.info("H3 %s N=%d %d/%d", fam, N, i + 1, len(insts))
+                ctx.logger.info("H3 %s %s %d/%d", fam, level["name"], i + 1, len(insts))
         write_jsonl(shard, rows)
         mark_done(shard, ctx.meta("H3", {"shard": shard.name}))
     summary = summarize_h3(list(iter_jsonl_glob(out / "rows", "*.jsonl")))

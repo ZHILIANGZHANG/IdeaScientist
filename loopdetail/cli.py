@@ -25,7 +25,7 @@ def _load(args, logger=None):
 
 
 def cmd_run(args) -> None:
-    from .experiments import exp_a1, exp_a2, exp_b, exp_c, exp_h3, sanity
+    from .experiments import calibrate, exp_a1, exp_a2, exp_b, exp_c, exp_h3, sanity
     from .experiments.common import EXPERIMENT_NAMES, RunContext, load_profile
 
     exps = [e.strip() for e in args.exp.split(",") if e.strip()]
@@ -48,7 +48,10 @@ def cmd_run(args) -> None:
     for exp in exps:
         t0 = time.time()
         logger.info("=== %s (%s) ===", exp, profile_name)
-        if exp == "sanity":
+        if exp == "calibrate":
+            cal = calibrate.run(ctx)
+            logger.info("calibrated levels: %s", cal["selected"])
+        elif exp == "sanity":
             report = sanity.run(ctx, skip_repro=args.skip_repro)
             logger.info("sanity overall: %s", report["overall"])
         else:
@@ -91,9 +94,14 @@ def cmd_stimuli(args) -> None:
                                                         trust_remote_code=bool(spec.get("trust_remote_code"))), args.model)
     chat = spec.get("prompt_format", "plain") == "chat"
     out = Path(args.out) / args.model
-    st = build_stimuli(tok, out, list(prof["families"]), list(prof["n_values"]),
-                       int(prof["contexts_per_cell"]), int(prof["seed"]), chat=chat)
-    print({f"{k[0]}_N{k[1]}": len(v) for k, v in st.items()}, "->", out / "stimuli")
+    st = build_stimuli(tok, out, list(prof["families"]), list(prof["levels"]), int(prof["contexts_per_cell"]),
+                       int(prof["seed"]), chat=chat, max_context=args.max_context)
+    print({f"{k[0]}_{k[1]}": len(v) for k, v in st.items()}, "->", out / "stimuli")
+
+
+def cmd_calibrate(args) -> None:
+    args.exp, args.force, args.skip_repro, args.analyze, args.gsm8k_path = "calibrate", False, True, False, None
+    cmd_run(args)
 
 
 def cmd_analyze(args) -> None:
@@ -125,7 +133,8 @@ def main(argv: list[str] | None = None) -> None:
 
     r = sub.add_parser("run", help="run experiments")
     model_args(r)
-    r.add_argument("--exp", default="sanity,B,A1,A2,H3,C")
+    r.add_argument("--exp", default="sanity,B,A1,A2,H3,C",
+                   help="comma list; run `calibrate` first (or include it) so levels are selected")
     r.add_argument("--profile", default="full")
     r.add_argument("--smoke", action="store_true", help="tiny end-to-end check (results meaningless)")
     r.add_argument("--skip-repro", action="store_true", help="skip S2 (ARC per-loop trend)")
@@ -146,7 +155,15 @@ def main(argv: list[str] | None = None) -> None:
     model_args(s)
     s.add_argument("--profile", default="full")
     s.add_argument("--smoke", action="store_true")
+    s.add_argument("--max-context", type=int, default=None, help="skip levels longer than this")
     s.set_defaults(fn=cmd_stimuli)
+
+    c = sub.add_parser("calibrate", help="pick difficulty levels (alias for run --exp calibrate)")
+    model_args(c)
+    c.add_argument("--profile", default="full")
+    c.add_argument("--smoke", action="store_true")
+    c.add_argument("--chat", action=argparse.BooleanOptionalAction, default=None)
+    c.set_defaults(fn=cmd_calibrate)
 
     a = sub.add_parser("analyze", help="statistics + figures for a results directory")
     a.add_argument("--model", default=None)

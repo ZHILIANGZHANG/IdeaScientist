@@ -19,7 +19,7 @@ import torch
 from ..stimuli.generate import variant_values
 from ..stimuli.render import INFO_TYPES, render
 from ..utils import iter_jsonl_glob, mark_done, parse_layer_selector, shard_done, write_jsonl
-from .common import RunContext
+from .common import RunContext, cell_fields
 
 VARIANTS = ("detail_swap", "gist_swap", "unrelated_swap")
 SITES = ("fact", "query")
@@ -62,9 +62,8 @@ def instance_rows(ctx: RunContext, inst: dict, loops: list[int], layers: list[in
                 edit = edit.reshape(*edit.shape[:3], -1)
                 cos, l2 = distances(base, edit)  # [loops, layers, 2]
                 for si, site in enumerate(SITES):
-                    rows.append({"item_id": inst["id"], "family": inst["family"], "N": inst["N"],
-                                 "info_type": info, "variant": variant, "rep": rep, "site": site,
-                                 "loops": loops, "layers": layers,
+                    rows.append({**cell_fields(inst), "info_type": info, "variant": variant,
+                                 "rep": rep, "site": site, "loops": loops, "layers": layers,
                                  "cos": cos[:, :, si].round(6).tolist(), "l2ln": l2[:, :, si].round(6).tolist()})
     return rows
 
@@ -109,8 +108,8 @@ def run(ctx: RunContext) -> dict:
     layers = parse_layer_selector(cfg.get("layers", "all"), ad.n_layers)
     reps = list(cfg.get("reps", ["hidden", "v"]))
     out = ctx.exp_dir("A2")
-    for fam, N, insts in ctx.cells("A2"):
-        shard = out / "rows" / f"{fam}_N{N}.jsonl"
+    for fam, level, insts in ctx.cells("A2"):
+        shard = out / "rows" / f"{fam}_{level['name']}.jsonl"
         if shard_done(shard):
             continue
         rows = []
@@ -118,7 +117,7 @@ def run(ctx: RunContext) -> dict:
             rows += instance_rows(ctx, inst, loops, layers, reps)
         write_jsonl(shard, rows)
         mark_done(shard, ctx.meta("A2", {"shard": shard.name}))
-        ctx.logger.info("A2 %s N=%d done (%d rows)", fam, N, len(rows))
+        ctx.logger.info("A2 %s %s done (%d rows)", fam, level["name"], len(rows))
     summary = summarize_a2(list(iter_jsonl_glob(out / "rows", "*.jsonl")))
     summary.update({"loops": loops, "layers": layers, "reps": reps})
     ctx.write_summary("A2", summary)

@@ -19,7 +19,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from ..stimuli.vocab import BOX_LABELS, CATEGORY_ITEMS, NAMES
+from ..stimuli.vocab import BOX_LABELS, CATEGORY_ITEMS, FILLERS, NAMES, SURNAMES
 from ..stimuli.render import TEMPLATES
 
 
@@ -124,6 +124,9 @@ class FakeOuroForCausalLM(nn.Module):
         self.model = FakeOuroModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
+    def get_input_embeddings(self):
+        return self.model.embed_tokens
+
     def forward(self, input_ids, **kw):
         _, hs, _ = self.model(input_ids)
         return SimpleNamespace(logits=self.lm_head(hs[-1]))
@@ -174,6 +177,9 @@ class FakeRavenForCausalLM(nn.Module):
         ))
         self.lm_head = nn.Linear(d, config.vocab_size, bias=False)
         self.emb_scale = 1.0
+
+    def get_input_embeddings(self):
+        return self.transformer.wte
 
     def initialize_state(self, input_embeds, scale: float = 1.0):
         x = torch.randn_like(input_embeds)
@@ -251,8 +257,9 @@ class WordTokenizer:
 
 
 def fake_tokenizer() -> WordTokenizer:
-    words = [w for items in CATEGORY_ITEMS.values() for w in items] + list(CATEGORY_ITEMS) + NAMES
-    words += BOX_LABELS[:200] + [f"{d}000s" for d in range(1, 10)]
+    words = [w for items in CATEGORY_ITEMS.values() for w in items] + list(CATEGORY_ITEMS) + NAMES + SURNAMES
+    words += [w for f in FILLERS for w in re.findall(r"[A-Za-z]+", f)]
+    words += BOX_LABELS + [f"{d}000s" for d in range(1, 10)]
     for tpl in TEMPLATES.values():
         for s in tpl.values():
             words += re.findall(r"[A-Za-z]+", s)
@@ -264,7 +271,7 @@ def build_fake_ouro(seed: int = 0, total_ut_steps: int = 4):
     torch.manual_seed(seed)
     tok = fake_tokenizer()
     cfg = SimpleNamespace(vocab_size=len(tok), hidden_size=64, num_attention_heads=4,
-                          num_key_value_heads=2, head_dim=16, num_hidden_layers=2,
+                          num_key_value_heads=2, head_dim=16, num_hidden_layers=2, max_position_embeddings=4096,
                           total_ut_steps=total_ut_steps)
     return FakeOuroForCausalLM(cfg).eval(), tok
 
@@ -274,6 +281,6 @@ def build_fake_huginn(seed: int = 0):
     tok = fake_tokenizer()
     cfg = SimpleNamespace(vocab_size=len(tok), n_embd=64, num_attention_heads=4, num_key_value_heads=4,
                           n_layers_in_prelude=1, n_layers_in_recurrent_block=2, n_layers_in_coda=1,
-                          mean_recurrence=8, init_values={"std": math.sqrt(2 / (5 * 64))},
+                          mean_recurrence=8, block_size=4096, init_values={"std": math.sqrt(2 / (5 * 64))},
                           test_time_noise=0)
     return FakeRavenForCausalLM(cfg).eval(), tok

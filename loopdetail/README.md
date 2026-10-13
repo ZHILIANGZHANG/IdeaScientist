@@ -29,8 +29,8 @@ and which of them are still unverified.
 
 | claim | confirmed if | refuted if |
 |---|---|---|
-| H1/H2 behavioural (ExpB) | within the trained loop range, the `t × info_type` coefficient of `correct ~ log2(t) * detail + (1 \| context)` is **negative**, with the 95% interval excluding 0 (both VB mixed model and GEE), in the box family at N ≥ 8; and the detail curve falls, or flattens, while the gist curve does not (per-type GEE slopes; McNemar between adjacent t) | interaction CI includes 0 or is positive, or detail and gist curves move together |
-| H2 representational (ExpA1/A2) | item-identity probe accuracy (and selectivity) on V/K at fact positions **decreases** over loops while category accuracy stays flat. In A2, the detail-swap / gist-swap distance ratio at fact and query positions decreases with loops, and both stay above the unrelated-swap control | identity is as decodable at late loops as at loop 1, or the ratios are flat |
+| H1/H2 behavioural (ExpB) | within the trained loop range, the `t × info_type` coefficient of `correct ~ log2(t) * detail + (1 \| context)` is **negative**, with the 95% interval excluding 0 (both VB mixed model and GEE). The primary test is the **box_explicit** family, pooled over the calibrated non-easy levels (detail accuracy 40–90% at trained T). The detail curve must fall, or flatten, while the gist curve does not (per-type GEE slopes; McNemar between adjacent t). For the implicit families, the same must hold in the *category-known* subset | interaction CI includes 0 or is positive, or detail and gist curves move together |
+| H2 representational (ExpA1/A2) | item-identity probe accuracy on V/K at fact positions **decreases** over loops (relative to the loop-1/layer-0 and input-embedding references; MDL compression falls) while category accuracy stays flat. In A2, the detail-swap / gist-swap distance ratio at fact and query positions decreases with loops, and both stay above the unrelated-swap control | identity is as decodable at late loops as at loop 1, or the ratios are flat |
 | H3 causal (ExpH3) | at T = trained loops, `same_loop1` patching of context K/V raises **detail** accuracy over `none` (paired McNemar p < .05) more than it raises gist accuracy. `diff_loop1` must **hurt** both (otherwise the patch site is not causal and H3 is untestable). `noise` must hurt | `same_loop1` does not help detail, or helps gist as much |
 | Architecture | the H1 interaction is stronger (more negative) for **Ouro** than for **Huginn**, because Huginn's input re-injection should protect detail. Recurrent-Llama vs Llama-3.2-1B, and Qwen3, serve as non-looped anchors | Huginn ≥ Ouro |
 
@@ -41,19 +41,54 @@ test. Huginn and the retrofitted models were trained with a *sampled* recurrence
 
 ## Design (all prefill-only, forced choice, hook-based)
 
-* **Stimuli** (`stimuli/`), generated per tokenizer and seeded:
-  * *box*: "Box KQ contains the apple." × N. A detail query ("Which exact object…",
-    4 same-category candidates) and a gist query ("What kind of object…", 4 categories)
-    are asked about the same fact.
-  * *codes*: "The code of Alice is 4821." Detail = the exact code among 4 codes that
-    differ in one non-leading digit. Gist = the thousand range. Scoring is multi-token
-    (summed log-prob).
-  * N ∈ {4, 8, 16, 32}. The design balances answer slot × query quartile and the
-    answer frequency.
-  * Every instance carries three minimal pairs (detail-swap, gist-swap, unrelated-swap)
-    and a different-input control context with identical token positions.
-  * Box answers must be one token for the model's own tokenizer. The resolved pool is
-    saved in `stimuli/pool.json`.
+* **Stimuli** (`stimuli/`), generated per tokenizer and seeded. Detail and gist are
+  asked about the same fact.
+
+  | family | fact | detail query | gist query |
+  |---|---|---|---|
+  | **box_explicit** (primary) | "Box KQ contains the zebra, a kind of animal." | exact object (4 same-category items) | kind of object (4 categories) |
+  | **codes_explicit** (primary) | "The code of Ann Lee is 4821, in the 4000s." | exact code (4 codes differing in one non-leading digit) | thousand range (4 ranges) |
+  | box (secondary) | "Box KQ contains the zebra." | same | same, but needs item→category *world knowledge* |
+  | codes (secondary) | "The code of Ann Lee is 4821." | same | same, but needs *numeric comparison* |
+
+  * In the explicit families both queries are pure retrieval of stated information, so
+    gist is a clean "same fact, coarser granularity" control.
+  * Explicit and implicit variants share seeds, so they contain identical facts and
+    queries.
+  * **Category-knowledge control (ExpB).** For every item and loop, a no-context prompt
+    ("The zebra is a kind of" / "The number 4821 is in the") is scored over the same gist
+    candidates. Summaries and statistics are also reported restricted to the
+    *category-known* rows.
+  * **Difficulty levels** (`levels` in `configs/experiments.yaml`):
+    * N ∈ {4, 16, 32, 64, 128} facts;
+    * optional neutral filler sentences after every fact, which lengthen the
+      fact → query distance;
+    * an optional `quartiles` restriction, e.g. a "far" level where the queried fact is
+      in the first quarter;
+    * `labels: confusable`, which adds interference: box uses three-digit labels
+      ("Box 418") that share digits, and codes uses only 4 first names, so people differ
+      only by surname.
+    * The full ladder is N4, N16, N32, N64, N128, N32_fill2, N64_fill2, N64_far,
+      N64_conf, N128_conf and N128_conf_fill1.
+  * **Context limit.** Levels that do not fit the model's context window (smallest of
+    `max_position_embeddings` / `block_size`, minus 64 tokens) are skipped and recorded in
+    `stimuli/meta.json`.
+  * **Calibration** (`calibrate`, run first).
+    * On 50 pilot contexts per level, taken from the end of each cell so they do not
+      overlap the experiment contexts, at the trained loop count.
+    * Selected levels = the easy anchor (N4) + every level with **detail accuracy in
+      [0.4, 0.9]**. If none qualifies, the closest level is added (and flagged).
+    * Stored in `results/<model>/calibration.json`. All experiments use the selected
+      levels; implicit families reuse their explicit sibling's selection.
+  * **Balance and controls.**
+    * The design balances answer slot × query quartile and the answer frequency.
+    * Every instance carries three minimal pairs (detail-swap, gist-swap,
+      unrelated-swap) and a different-input control context with identical token
+      positions.
+    * At large N, non-queried items may repeat; the queried item is always unique in its
+      context.
+  * Box answers must be one token for the model's own tokenizer. The resolved pool is in
+    `stimuli/pool.json`.
 * **Adapters** (`models/`): one interface for Ouro, Raven (Huginn and Recurrent-*) and HF
   decoders.
   * `readout_logits` runs exactly t loops.
@@ -70,10 +105,15 @@ test. Huginn and the retrofitted models were trained with a *sampled* recurrence
     * S5: no-context baseline at chance.
   * **B**: per-loop accuracy and (calibrated) margins.
   * **A1**: probes at fact positions.
+    * Torch multinomial L2 logistic regression, batched over CV folds × C and run on
+      CUDA when available. sklearn is a fallback and is tested to match.
     * C chosen by group-CV on train only.
-    * Hewitt–Liang control and selectivity.
-    * Context-level bootstrap CIs.
-    * Optional online-code MDL.
+    * **Primary references:** the same probe on the input embedding (`acc_minus_embed`),
+      the same representation at loop 1 / layer 0 (`acc_minus_l1l0`), and online-code
+      **MDL**.
+    * Hewitt–Liang selectivity is kept as a *secondary* number only. A type-memorising
+      control decodes word-type attributes at that word's own position (0.97 on
+      Qwen3), so it is uninformative here.
   * **A2**: minimal-pair sensitivity.
   * **H3**: loop-1 K/V patching.
     * Controls: different-input loop-1 and norm-matched noise.
@@ -109,10 +149,12 @@ transformers 5.19 / torch 2.14 (CPU)**.
 ~/venvs/ld-ouro/bin/python -m loopdetail inspect --model ouro-1.4b
 ~/venvs/ld-raven/bin/python -m loopdetail inspect --model huginn
 # 1. 5-minute end-to-end smoke (results meaningless; written under results/smoke/)
-~/venvs/ld-ouro/bin/python -m loopdetail run --model ouro-1.4b --smoke --skip-repro
-# 2. full run of one model (sanity must PASS first; resumable)
+~/venvs/ld-ouro/bin/python -m loopdetail run --model ouro-1.4b --smoke --skip-repro --exp calibrate,sanity,B,A1,A2,H3,C
+# 2. pick difficulty levels (writes results/ouro-1.4b/calibration.json; check it!)
+~/venvs/ld-ouro/bin/python -m loopdetail calibrate --model ouro-1.4b
+# 3. full run of one model (sanity must PASS first; resumable)
 ~/venvs/ld-ouro/bin/python -m loopdetail run --model ouro-1.4b --exp sanity,B,A1,A2,H3,C --analyze
-# 3. everything, cheapest model first (inspect -> smoke -> full -> analyze per model)
+# 4. everything, cheapest model first (inspect -> smoke -> calibrate -> full -> analyze)
 VENV_OURO=~/venvs/ld-ouro VENV_RAVEN=~/venvs/ld-raven bash loopdetail/scripts/run_all_a100.sh
 # after hand-labelling results/<model>/C/annotation_sample.csv:
 python -m loopdetail agreement --csv loopdetail/results/ouro-1.4b/C/annotation_sample.csv
@@ -150,10 +192,11 @@ times are logged in `results/<model>/run.log`.
 ```
 results/<model>/
   run.log                      timestamps + per-stage durations
-  stimuli/{pool.json, meta.json, box_N8.jsonl, ...}
+  calibration.json             pilot accuracy per (family, level) + selected levels
+  stimuli/{pool.json, meta.json, {family}_{level}.jsonl}   (jsonl git-ignored; regenerable)
   sanity/sanity_report.json    S1–S5 with PASS/FAIL/SKIPPED + overall
-  B/rows/{family}_N{N}.jsonl   per item × info_type × t: correct, margin, margin_cal, logp, ...
-  A1/features/{family}.pt      captured features (fp16) + labels;  A1/rows/{family}.jsonl probe cells
+  B/rows/{family}_{level}.jsonl  per item × info_type × t: correct, margin(_cal), cat_known, logp, ...
+  A1/features/{family}.pt      captured features (fp16; git-ignored);  A1/rows/{family}.jsonl probe cells
   A2/rows/...                  per item × variant × rep × site: [loop][layer] distances
   H3/rows/...                  per item × condition × target: correct, margin, delta_margin
   C/rows/t{t}.jsonl, C/annotation_sample.csv
@@ -166,8 +209,9 @@ marker to recompute it.
 
 ## How to read the results
 
-* **Behaviour (H1/H2):** start with `figures/B_accuracy_box.png` and
-  `analysis.json → B_stats.box_interaction_trained_range`.
+* **Behaviour (H1/H2):** start with `figures/B_accuracy_box_explicit.png` and
+  `analysis.json → B_stats.box_explicit.interaction_trained_range`. For the implicit
+  families, also read `interaction_category_known` and `B/summary.json → table_category_known`.
   * A negative `mixed_vb.coef` / `gee.coef` with an interval below 0 supports
     H1/H2.
   * Check `nocontext_acc` ≈ 0.25 and `margin_cal` before trusting raw accuracy.
@@ -200,7 +244,14 @@ marker to recompute it.
   back. The box family is the primary probe target.
 * **Templates.**
   * English only, base-model completion format by default.
-  * The box template uses "the {item}" (not "a {item}") to avoid an a/an cue.
+  * The box template uses "the {item}" and "a kind of {category}" (never "a/an"), so
+    articles give no cue.
+* **Calibration selects levels on the same model.** It uses held-out pilot contexts, but
+  the level choice still depends on the model's accuracy at trained T. Compare models on
+  shared levels (`B.levels: [...]` overrides calibration) as well as on their own
+  selections.
+* **Large-N reuse.** At large N the item pool (~96 items) is smaller than N, so
+  non-queried items repeat across boxes. The queried item is always unique.
 * **Chat format.** Thinking models use their chat template with thinking disabled where
   the template supports it. Their forced-choice behaviour may differ from base models.
 * **GSM8K tagging.** The detail-error tagger is a heuristic (operand provenance). Use the

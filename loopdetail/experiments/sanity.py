@@ -18,6 +18,7 @@ import numpy as np
 from ..analysis.probes import probe_cell
 from ..models.base import KVPatch
 from ..scoring import candidate_token_ids, choice_stats, score_loops
+from ..stimuli.generate import base_family
 from ..stimuli.render import INFO_TYPES, render
 from ..utils import read_json, write_json
 from .common import RunContext
@@ -25,9 +26,12 @@ from .exp_a1 import extract_features
 
 
 def _items(ctx: RunContext, n: int) -> list[dict]:
+    """Round-robin over the (family, level) cells of the TWO shortest levels (sanity checks
+    do not need long contexts)."""
     st = ctx.stimuli()
     out: list[dict] = []
-    keys = sorted(st, key=lambda k: (k[1], k[0]))
+    short = sorted({lv for _, lv in st}, key=lambda name: ctx.level(name)["N"])[:2]
+    keys = sorted((k for k in st if k[1] in short), key=lambda k: (ctx.level(k[1])["N"], k[0]))
     i = 0
     while len(out) < n and i < max(len(v) for v in st.values()):
         for k in keys:
@@ -90,11 +94,12 @@ def s3_patch_noop(ctx: RunContext, items: list[dict]) -> dict[str, Any]:
 
 def s4_probe(ctx: RunContext, cfg: dict) -> dict[str, Any]:
     """Item identity at the item token from V at loop 1 / layer 0 (a near-linear function of
-    the token embedding), using box contexts with the most facts so every item recurs."""
+    the token embedding), on the smallest box level with N >= 16 so items recur."""
     st = ctx.stimuli()
-    cells = sorted((k for k in st if k[0] == "box"), key=lambda k: -k[1])
+    cells = sorted((k for k in st if base_family(k[0]) == "box"), key=lambda k: ctx.level(k[1])["N"])
+    big = [k for k in cells if ctx.level(k[1])["N"] >= 16] or cells[-1:]
     n_ctx = int(cfg.get("s4_contexts", 40))
-    insts = [i for k in cells for i in st[k]][:n_ctx]
+    insts = [i for k in big[:1] for i in st[k]][:n_ctx]
     data = extract_features(ctx, insts, [1], [0], ["v"], int(cfg.get("s4_facts_per_context", 8)), ctx.seed)
     meta = data["meta"]
     X = data["features"]["v"][:, 0, 0].float().numpy()

@@ -85,3 +85,11 @@ The following were implemented from source reading and tested only on fake model
    is saved to `results/<model>/stimuli/pool.json`.
 6. Huginn's model-native state distribution via `initialize_state`. We seed it; the model
    itself draws an unseeded one.
+7. **Shared by all adapters (added for the harder levels and the probe baselines):**
+   * `model.get_input_embeddings()` returns the token embedding module (the A1
+     input-embedding baseline; Raven multiplies by `emb_scale` afterwards, so the baseline
+     is the unscaled embedding, which a standardised linear probe cannot tell apart).
+   * The context limit is the smallest of `config.max_position_embeddings`,
+     `config.block_size` and `config.n_positions`. Huginn's `freqs_cis` covers only
+     `block_size` (4096); Ouro's config says 65536. Override with `options.max_context`
+     in models.yaml.

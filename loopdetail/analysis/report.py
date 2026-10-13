@@ -12,6 +12,9 @@ from .stats import adjacent_mcnemar, loop_info_interaction, loop_trend
 
 
 def analyze_b(model_dir: Path) -> dict[str, Any]:
+    """Loop x info-type statistics per family: trained-range interaction (all rows and rows
+    whose category is known without context at that loop), all-loops interaction when
+    extrapolated loops exist, per-level interactions, per-type trends, adjacent McNemar."""
     import pandas as pd
 
     rows = list(iter_jsonl_glob(model_dir / "B" / "rows", "*.jsonl"))
@@ -26,12 +29,14 @@ def analyze_b(model_dir: Path) -> dict[str, Any]:
     df["lt"] -= df["lt"].mean()
     for fam, d in df.groupby("family"):
         d_in = d[~d["extrapolated"]]
-        out[f"{fam}_interaction_trained_range"] = loop_info_interaction(d_in)
-        out[f"{fam}_trend_trained_range"] = loop_trend(d_in)
+        res: dict[str, Any] = {"interaction_trained_range": loop_info_interaction(d_in),
+                               "trend_trained_range": loop_trend(d_in)}
+        if "cat_known" in d_in:
+            res["interaction_category_known"] = loop_info_interaction(d_in[d_in["cat_known"] == 1])
         if d["extrapolated"].any():
-            out[f"{fam}_interaction_all_loops"] = loop_info_interaction(d)
-        for N, dn in d_in.groupby("N"):
-            out[f"{fam}_N{N}_interaction"] = loop_info_interaction(dn)
+            res["interaction_all_loops"] = loop_info_interaction(d)
+        res["per_level"] = {lv: loop_info_interaction(dl) for lv, dl in d_in.groupby("level")}
+        out[fam] = res
     return out
 
 

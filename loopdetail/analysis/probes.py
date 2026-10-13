@@ -1,13 +1,17 @@
-"""Linear probes: multinomial logistic regression in torch (CPU or GPU).
+"""Linear probes: L2-regularised multinomial logistic regression.
 
-* features standardised with TRAIN statistics only;
-* L2 strength chosen by group K-fold CV on the train split only (groups = context
-  instances) from the SAME C grid for every cell; sklearn-equivalent objective
-  mean(CE) + ||W||^2 / (2 C n_train);
-* all C values of a fold are fitted jointly (independent problems, one L-BFGS run);
-* Hewitt & Liang control task: every word TYPE gets a random label from the same label
-  set; selectivity = acc(task) - acc(control);
-* bootstrap CI over test contexts; optional online-code MDL (Voita & Titov 2020).
+Backends
+  torch   (default) full-batch L-BFGS; ALL (CV fold x C) problems of a cell are fitted
+          jointly in one batched optimisation (independent objectives, so the joint optimum
+          is each problem's optimum); runs on CUDA when available.
+  sklearn fallback: sklearn.linear_model.LogisticRegression(lbfgs), one fit per (fold, C).
+Both minimise the same objective, mean(CE) + ||W||^2 / (2 C n_train) (sklearn's
+C*sum(CE) + ||W||^2/2 divided by C*n_train; intercept unpenalised), on features
+standardised with TRAIN statistics only. C is chosen by group K-fold CV on the train
+split only (groups = context instances), from the SAME grid for every cell.
+
+Also: Hewitt & Liang control task (secondary), context-level bootstrap CIs, and
+online-code MDL (Voita & Titov 2020; first block coded uniformly).
 """
 from __future__ import annotations
 
@@ -32,32 +36,33 @@ def _standardize(Xtr: torch.Tensor, Xte: torch.Tensor) -> tuple[torch.Tensor, to
     return (Xtr - mu) / sd, (Xte - mu) / sd
 
 
-def fit_logreg(X: torch.Tensor, y: torch.Tensor, n_classes: int, Cs: Sequence[float],
-               max_iter: int = 100) -> tuple[torch.Tensor, torch.Tensor]:
-    """Fit one multinomial LR per C jointly. Returns W [nC, D, K], b [nC, K]."""
-    n, D = X.shape
+def fit_logreg_batched(Xs: torch.Tensor, y: torch.Tensor, masks: torch.Tensor, n_classes: int,
+                       Cs: Sequence[float], max_iter: int = 200) -> tuple[torch.Tensor, torch.Tensor]:
+    """Jointly fit P = len(masks) x len(Cs) problems.
+    Xs [P_x, n, D] standardised features (P_x = len(masks): one standardisation per mask),
+    masks [P_x, n] bool training rows. Returns W [P_x, nC, D, K], b [P_x, nC, K]."""
+    F, n, D = Xs.shape
     nC = len(Cs)
-    W = torch.zeros(nC, D, n_classes, device=X.device, requires_grad=True)
-    b = torch.zeros(nC, n_classes, device=X.device, requires_grad=True)
-    lam = torch.tensor([1.0 / (c * n) for c in Cs], device=X.device)
+    W = torch.zeros(F, nC, D, n_classes, device=Xs.device, requires_grad=True)
+    b = torch.zeros(F, nC, n_classes, device=Xs.device, requires_grad=True)
+    m = masks.float()
+    n_tr = m.sum(1)  # [F]
+    lam = torch.tensor([1.0 / c for c in Cs], device=Xs.device)[None, :] / n_tr[:, None]  # [F, nC]
+    onehot = torch.nn.functional.one_hot(y, n_classes).float()
     opt = torch.optim.LBFGS([W, b], lr=1.0, max_iter=max_iter, history_size=20,
-                            line_search_fn="strong_wolfe", tolerance_grad=1e-6, tolerance_change=1e-9)
+                            line_search_fn="strong_wolfe", tolerance_grad=1e-7, tolerance_change=1e-10)
 
     def closure():
         opt.zero_grad()
-        logits = torch.einsum("nd,cdk->cnk", X, W) + b[:, None, :]
-        ce = torch.nn.functional.cross_entropy(logits.reshape(-1, n_classes), y.repeat(nC),
-                                               reduction="none").view(nC, n).mean(1)
-        loss = (ce + 0.5 * lam * W.pow(2).sum((1, 2))).sum()
+        logits = torch.einsum("fnd,fcdk->fcnk", Xs, W) + b[:, :, None, :]
+        nll = -(torch.log_softmax(logits, -1) * onehot).sum(-1)  # [F, nC, n]
+        ce = (nll * m[:, None, :]).sum(-1) / n_tr[:, None]
+        loss = (ce + 0.5 * lam * W.pow(2).sum((2, 3))).sum()
         loss.backward()
         return loss
 
     opt.step(closure)
     return W.detach(), b.detach()
-
-
-def _predict(X: torch.Tensor, W: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    return (torch.einsum("nd,cdk->cnk", X, W) + b[:, None, :]).argmax(-1)  # [nC, n]
 
 
 def group_folds(groups: np.ndarray, k: int, seed: int) -> list[np.ndarray]:
@@ -68,27 +73,63 @@ def group_folds(groups: np.ndarray, k: int, seed: int) -> list[np.ndarray]:
     return [np.flatnonzero(np.isin(groups, p)) for p in parts]
 
 
+def _probe_torch(Xtr, ytr, gtr, Xte, yte, n_classes, Cs, folds, seed, device) -> ProbeResult:
+    X = torch.as_tensor(Xtr, dtype=torch.float32, device=device)
+    y = torch.as_tensor(ytr, dtype=torch.long, device=device)
+    fold_idx = group_folds(gtr, folds, seed)
+    masks = torch.ones(len(fold_idx), len(ytr), dtype=torch.bool, device=device)
+    for f, val in enumerate(fold_idx):
+        masks[f, val] = False
+    Xs = torch.stack([_standardize(X[mk], X)[1] for mk in masks])  # per-fold train statistics
+    W, b = fit_logreg_batched(Xs, y, masks, n_classes, Cs)
+    pred = (torch.einsum("fnd,fcdk->fcnk", Xs, W) + b[:, :, None, :]).argmax(-1)  # [F, nC, n]
+    hits = ((pred == y) & ~masks[:, None, :]).sum((0, 2)).float().cpu().numpy()
+    cv_acc = hits / len(ytr)
+    best = int(np.argmax(cv_acc))
+    a, v = _standardize(X, torch.as_tensor(Xte, dtype=torch.float32, device=device))
+    W, b = fit_logreg_batched(a[None], y, torch.ones(1, len(ytr), dtype=torch.bool, device=device),
+                              n_classes, [Cs[best]])
+    p = (v @ W[0, 0] + b[0, 0]).argmax(-1).cpu().numpy()
+    return ProbeResult(acc=float((p == yte).mean()), C=float(Cs[best]),
+                       cv_acc={float(c): float(x) for c, x in zip(Cs, cv_acc)},
+                       test_correct=(p == yte).astype(int))
+
+
+def _sk_fit(X, y, C):
+    from sklearn.linear_model import LogisticRegression
+
+    return LogisticRegression(C=C, max_iter=2000, tol=1e-8).fit(X, y)
+
+
+def _probe_sklearn(Xtr, ytr, gtr, Xte, yte, n_classes, Cs, folds, seed) -> ProbeResult:
+    def std(a, b):
+        mu, sd = a.mean(0), np.maximum(a.std(0, ddof=1), 1e-6)
+        return (a - mu) / sd, (b - mu) / sd
+
+    hits = np.zeros(len(Cs))
+    for val in group_folds(gtr, folds, seed):
+        tr = np.ones(len(ytr), bool)
+        tr[val] = False
+        a, v = std(Xtr[tr], Xtr[val])
+        for i, C in enumerate(Cs):
+            hits[i] += (_sk_fit(a, ytr[tr], C).predict(v) == ytr[val]).sum()
+    cv_acc = hits / len(ytr)
+    best = int(np.argmax(cv_acc))
+    a, v = std(Xtr, Xte)
+    p = _sk_fit(a, ytr, Cs[best]).predict(v)
+    return ProbeResult(acc=float((p == yte).mean()), C=float(Cs[best]),
+                       cv_acc={float(c): float(x) for c, x in zip(Cs, cv_acc)},
+                       test_correct=(p == yte).astype(int))
+
+
 def probe(Xtr: np.ndarray, ytr: np.ndarray, gtr: np.ndarray, Xte: np.ndarray, yte: np.ndarray,
           n_classes: int, Cs: Sequence[float], folds: int, seed: int, device: str = "cpu",
-          max_iter: int = 100) -> ProbeResult:
-    Xtr_t = torch.as_tensor(Xtr, dtype=torch.float32, device=device)
-    Xte_t = torch.as_tensor(Xte, dtype=torch.float32, device=device)
-    ytr_t = torch.as_tensor(ytr, dtype=torch.long, device=device)
-    yte_t = torch.as_tensor(yte, dtype=torch.long, device=device)
-    cv_hits = np.zeros(len(Cs))
-    for val_idx in group_folds(gtr, folds, seed):
-        tr_mask = np.ones(len(ytr), bool)
-        tr_mask[val_idx] = False
-        a, v = _standardize(Xtr_t[tr_mask], Xtr_t[val_idx])
-        W, b = fit_logreg(a, ytr_t[tr_mask], n_classes, Cs, max_iter)
-        cv_hits += (_predict(v, W, b) == ytr_t[val_idx]).float().sum(1).cpu().numpy()
-    cv_acc = cv_hits / len(ytr)
-    best = int(np.argmax(cv_acc))
-    a, v = _standardize(Xtr_t, Xte_t)
-    W, b = fit_logreg(a, ytr_t, n_classes, [Cs[best]], max_iter)
-    correct = (_predict(v, W, b)[0] == yte_t).cpu().numpy().astype(int)
-    return ProbeResult(acc=float(correct.mean()), C=float(Cs[best]),
-                       cv_acc={float(c): float(x) for c, x in zip(Cs, cv_acc)}, test_correct=correct)
+          backend: str = "torch") -> ProbeResult:
+    if backend == "torch":
+        return _probe_torch(Xtr, ytr, gtr, Xte, yte, n_classes, Cs, folds, seed, device)
+    if backend == "sklearn":
+        return _probe_sklearn(Xtr, ytr, gtr, Xte, yte, n_classes, Cs, folds, seed)
+    raise ValueError(f"probe backend must be 'torch' or 'sklearn', got {backend!r}")
 
 
 def control_labels(types: np.ndarray, n_classes: int, seed: int) -> np.ndarray:
@@ -114,8 +155,9 @@ def online_code_mdl(X: np.ndarray, y: np.ndarray, n_classes: int, C: float, seed
     yt = torch.as_tensor(y, dtype=torch.long, device=device)
     for lo, hi in zip(cuts[:-1], cuts[1:]):
         a, v = _standardize(Xt[:lo], Xt[lo:hi])
-        W, b = fit_logreg(a, yt[:lo], n_classes, [C])
-        logits = torch.einsum("nd,dk->nk", v, W[0]) + b[0]
+        W, b = fit_logreg_batched(a[None], yt[:lo], torch.ones(1, lo, dtype=torch.bool, device=device),
+                                  n_classes, [C])
+        logits = v @ W[0, 0] + b[0, 0]
         bits += float(torch.nn.functional.cross_entropy(logits, yt[lo:hi], reduction="sum")) / math.log(2)
     uniform = len(y) * math.log2(n_classes)
     return {"mdl_bits": bits, "uniform_bits": uniform, "compression": uniform / bits}
@@ -123,26 +165,25 @@ def online_code_mdl(X: np.ndarray, y: np.ndarray, n_classes: int, C: float, seed
 
 def probe_cell(X: np.ndarray, labels: np.ndarray, types: np.ndarray, groups: np.ndarray,
                test_mask: np.ndarray, Cs: Sequence[float], folds: int, seed: int,
-               n_boot: int = 1000, device: str = "cpu", mdl: bool = False) -> dict[str, Any]:
-    """Task probe + control probe for one (representation, loop, layer, task) cell."""
+               n_boot: int = 1000, device: str = "cpu", mdl: bool = False,
+               backend: str = "torch") -> dict[str, Any]:
+    """Task probe (+ MDL) and the secondary control probe for one cell."""
     from .stats import bootstrap_ci
 
     classes, y = np.unique(labels, return_inverse=True)
     K = len(classes)
     tr = ~test_mask
     te = test_mask & np.isin(y, y[tr])  # a test label never seen in training cannot be decoded
-    res = probe(X[tr], y[tr], groups[tr], X[te], y[te], K, Cs, folds, seed, device)
+    res = probe(X[tr], y[tr], groups[tr], X[te], y[te], K, Cs, folds, seed, device, backend)
     yc = control_labels(types, K, seed + 1)
-    ctrl = probe(X[tr], yc[tr], groups[tr], X[te], yc[te], K, Cs, folds, seed, device)
-    sel = res.test_correct.astype(float) - ctrl.test_correct.astype(float)
+    ctrl = probe(X[tr], yc[tr], groups[tr], X[te], yc[te], K, Cs, folds, seed, device, backend)
     out = {
-        "acc": res.acc, "C": res.C, "control_acc": ctrl.acc, "control_C": ctrl.C,
-        "selectivity": res.acc - ctrl.acc, "n_classes": K,
-        "majority_baseline": float(np.bincount(y[te], minlength=K).max() / te.sum()),
+        "acc": res.acc, "C": res.C, "n_classes": K,
+        "majority_baseline": float(np.bincount(y[te], minlength=K).max() / max(1, te.sum())),
         "n_train": int(tr.sum()), "n_test": int(te.sum()),
         "n_test_dropped_unseen_label": int(test_mask.sum() - te.sum()),
         "acc_ci95": list(bootstrap_ci(res.test_correct, groups[te], n_boot, seed)),
-        "selectivity_ci95": list(bootstrap_ci(sel, groups[te], n_boot, seed)),
+        "control_acc": ctrl.acc, "selectivity": res.acc - ctrl.acc,  # secondary (see module doc)
     }
     if mdl:
         out["mdl"] = online_code_mdl(X[tr], y[tr], K, res.C, seed, device=device)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run the whole kit on one A100, cheapest model first. For every model:
-# inspect (assumption checks) -> smoke (5-min pipeline check) -> full run -> analyze.
+# inspect (assumption checks) -> smoke (5-min pipeline check) -> calibrate (pick difficulty
+# levels on 50 pilot contexts per level at the trained loop count) -> full run -> analyze.
 # Every stage is resumable: finished shards are skipped when the script is re-run.
 #
 # Two virtualenvs are expected (see README "Install"):
@@ -18,7 +19,7 @@ cd "$(dirname "$0")/../.."
 VENV_OURO=${VENV_OURO:-}
 VENV_RAVEN=${VENV_RAVEN:-$VENV_OURO}
 MODELS=${MODELS:-"ouro-1.4b huginn recurrent-llama llama-3.2-1b ouro-2.6b qwen3-0.6b qwen3-1.7b"}
-STAGES=${STAGES:-"inspect smoke full analyze"}
+STAGES=${STAGES:-"inspect smoke calibrate full analyze"}
 EXPS=${EXPS:-"sanity,B,A1,A2,H3,C"}
 OUT=${OUT:-loopdetail/results}
 LOG_DIR="$OUT/logs"
@@ -28,10 +29,10 @@ mkdir -p "$LOG_DIR"
 # parameter count x loops x prompt length. Treat them as order-of-magnitude guides only;
 # real times are logged to results/<model>/run.log.
 declare -A EST=(
-  [ouro-1.4b]="~3-5 h (B ~1 h, A1 ~0.5 h, A2 ~0.5 h, H3 ~1 h, C ~1.5 h)"
-  [ouro-2.6b]="~5-8 h"
-  [huginn]="~10-16 h (64-loop forwards of a 3.5B model dominate B; C uses up to 32 steps)"
-  [recurrent-llama]="~4-7 h"
+  [ouro-1.4b]="~4-8 h (depends on which long levels calibration selects; C ~1.5 h)"
+  [ouro-2.6b]="~6-12 h"
+  [huginn]="~12-24 h (64-loop forwards of a 3.5B model on long levels dominate B)"
+  [recurrent-llama]="~5-10 h"
   [llama-3.2-1b]="~1-2 h (single loop; no H3)"
   [qwen3-0.6b]="~1 h (single loop; no H3)"
   [qwen3-1.7b]="~1.5 h (single loop; no H3)"
@@ -58,7 +59,9 @@ for model in $MODELS; do
     echo "[$(date +%H:%M:%S)] $model: $stage -> $log"
     case "$stage" in
       inspect) run_py "$venv" inspect --model "$model" --out-json "$OUT/$model.inspect.json" >"$log" 2>&1 ;;
-      smoke)   run_py "$venv" run --model "$model" --smoke --skip-repro --exp "$EXPS" --out "$OUT" >"$log" 2>&1 ;;
+      smoke)   run_py "$venv" run --model "$model" --smoke --skip-repro --exp "calibrate,$EXPS" --out "$OUT" >"$log" 2>&1 ;;
+      calibrate) run_py "$venv" calibrate --model "$model" --out "$OUT" >"$log" 2>&1
+                 echo "  selected levels -> $OUT/$model/calibration.json" ;;
       full)    run_py "$venv" run --model "$model" --exp "$EXPS" --out "$OUT" >"$log" 2>&1 ;;
       analyze) run_py "$venv" analyze --model "$model" --out "$OUT" >"$log" 2>&1 ;;
       *) echo "unknown stage $stage"; exit 2 ;;
