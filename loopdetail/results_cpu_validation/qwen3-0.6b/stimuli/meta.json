@@ -1,0 +1,29 @@
+{
+  "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3",
+  "timestamp_utc": "2026-10-13T12:47:35+00:00",
+  "host": "vm",
+  "versions": {
+    "python": "3.13.16",
+    "torch": "2.14.1+cu130",
+    "transformers": "5.19.0",
+    "numpy": "2.5.4",
+    "sklearn": "1.9.1",
+    "statsmodels": "0.15.0"
+  },
+  "config": {
+    "families": [
+      "box",
+      "codes"
+    ],
+    "n_values": [
+      4,
+      8,
+      16
+    ],
+    "n_contexts": 48,
+    "seed": 1234,
+    "chat": false,
+    "tokenizer": "qwen3-0.6b",
+    "n_categories": 8
+  }
+}

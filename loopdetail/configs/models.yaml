@@ -1,0 +1,205 @@
+# Model registry. Add models in your own YAML and pass --models-yaml (entries merge/override).
+# Fields:
+#   hf_id              HF hub id (override with --model-path for a local copy)
+#   adapter            ouro | raven | hf
+#   trust_remote_code  required for Ouro / Huginn / Recurrent-*
+#   n_loops_trained    loop count used in training (H3 patches at this T)
+#   loops_eval         loop counts for ExpB/S1/S5 ; extrapolation_from marks loops beyond training
+#   probe_loops        loops captured for A1/A2 ; h3_target_loops: single-loop patch targets
+#   prompt_format      plain | chat (chat = tokenizer chat template, thinking disabled if supported)
+#   module_paths       overrides of the adapter's default module paths (see ADAPTERS.md)
+#   options            adapter options (raven: state_init seeded_random|zero, state_seed)
+#   experiments        per-experiment overrides of configs/experiments.yaml
+#   repro              true -> S2 per-loop ARC trend check
+
+ouro-1.4b:
+  hf_id: ByteDance/Ouro-1.4B
+  adapter: ouro
+  trust_remote_code: true
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 4
+  loops_eval: [1, 2, 3, 4, 5, 6, 7, 8]
+  extrapolation_from: 5
+  probe_loops: [1, 2, 3, 4]
+  h3_target_loops: [2, 3, 4]
+  prompt_format: plain
+  repro: true
+  experiments:
+    C: {loops: [1, 2, 3, 4]}
+
+ouro-2.6b:
+  hf_id: ByteDance/Ouro-2.6B
+  adapter: ouro
+  trust_remote_code: true
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 4
+  loops_eval: [1, 2, 3, 4, 5, 6, 7, 8]
+  extrapolation_from: 5
+  probe_loops: [1, 2, 3, 4]
+  h3_target_loops: [2, 3, 4]
+  prompt_format: plain
+  repro: true
+  experiments:
+    C: {loops: [1, 2, 3, 4]}
+
+ouro-1.4b-thinking:
+  hf_id: ByteDance/Ouro-1.4B-Thinking
+  adapter: ouro
+  trust_remote_code: true
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 4
+  loops_eval: [1, 2, 3, 4, 5, 6, 7, 8]
+  extrapolation_from: 5
+  probe_loops: [1, 2, 3, 4]
+  h3_target_loops: [2, 3, 4]
+  prompt_format: chat
+  experiments:
+    C: {loops: [1, 2, 3, 4], max_new_tokens: 1024}
+
+ouro-2.6b-thinking:
+  hf_id: ByteDance/Ouro-2.6B-Thinking
+  adapter: ouro
+  trust_remote_code: true
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 4
+  loops_eval: [1, 2, 3, 4, 5, 6, 7, 8]
+  extrapolation_from: 5
+  probe_loops: [1, 2, 3, 4]
+  h3_target_loops: [2, 3, 4]
+  prompt_format: chat
+  experiments:
+    C: {loops: [1, 2, 3, 4], max_new_tokens: 1024}
+
+huginn:
+  hf_id: tomg-group-umd/huginn-0125
+  adapter: raven
+  trust_remote_code: true
+  dtype: bfloat16
+  n_loops_trained: 32          # mean recurrence during training
+  loops_eval: [1, 2, 4, 8, 16, 32, 48, 64]
+  # no extrapolation_from: training samples the recurrence count (mean 32, heavy tail)
+  probe_loops: [1, 2, 4, 8, 16, 32]
+  h3_target_loops: [2, 4, 8, 16, 32]
+  prompt_format: plain
+  repro: true
+  options: {state_init: seeded_random, state_seed: 0}
+  experiments:                 # 64-loop forwards of a 3.5B model: smaller cells than the default
+    B: {contexts_per_cell: 300}
+    A1: {contexts_per_cell: 200}
+    H3: {contexts_per_cell: 100, head_sweep: {layers: all, heads: 8}}
+    C: {loops: [1, 4, 8, 32]}
+
+recurrent-llama:
+  hf_id: smcleish/Recurrent-Llama-3.2-train-recurrence-32
+  adapter: raven
+  trust_remote_code: true
+  dtype: bfloat16
+  n_loops_trained: 32
+  loops_eval: [1, 2, 4, 8, 16, 32]
+  probe_loops: [1, 2, 4, 8, 16, 32]
+  h3_target_loops: [2, 4, 8, 16, 32]
+  prompt_format: plain
+  repro: true
+  options: {state_init: seeded_random, state_seed: 0}
+  experiments:
+    C: {loops: [1, 4, 8, 32]}
+
+recurrent-olmo:
+  hf_id: smcleish/Recurrent-OLMo-2-0425-train-recurrence-32
+  adapter: raven
+  trust_remote_code: true
+  dtype: bfloat16
+  n_loops_trained: 32
+  loops_eval: [1, 2, 4, 8, 16, 32]
+  probe_loops: [1, 2, 4, 8, 16, 32]
+  h3_target_loops: [2, 4, 8, 16, 32]
+  prompt_format: plain
+  repro: true
+  options: {state_init: seeded_random, state_seed: 0}
+  experiments:
+    C: {loops: [1, 4, 8, 32]}
+
+recurrent-tinyllama:
+  hf_id: smcleish/Recurrent-TinyLlama-3T-train-recurrence-32
+  adapter: raven
+  trust_remote_code: true
+  dtype: bfloat16
+  n_loops_trained: 32
+  loops_eval: [1, 2, 4, 8, 16, 32]
+  probe_loops: [1, 2, 4, 8, 16, 32]
+  h3_target_loops: [2, 4, 8, 16, 32]
+  prompt_format: plain
+  repro: true
+  options: {state_init: seeded_random, state_seed: 0}
+  experiments:
+    C: {loops: [1, 4, 8, 32]}
+
+llama-3.2-1b:                  # gated on the Hub: accept the licence or pass --model-path
+  hf_id: meta-llama/Llama-3.2-1B
+  adapter: hf
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 1
+  loops_eval: [1]
+  probe_loops: [1]
+  prompt_format: plain
+
+olmo-2-1b:
+  hf_id: allenai/OLMo-2-0425-1B
+  adapter: hf
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 1
+  loops_eval: [1]
+  probe_loops: [1]
+  prompt_format: plain
+
+qwen3-0.6b:
+  hf_id: Qwen/Qwen3-0.6B
+  adapter: hf
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 1
+  loops_eval: [1]
+  probe_loops: [1]
+  prompt_format: plain
+
+qwen3-1.7b:
+  hf_id: Qwen/Qwen3-1.7B
+  adapter: hf
+  attn_implementation: sdpa
+  dtype: bfloat16
+  n_loops_trained: 1
+  loops_eval: [1]
+  probe_loops: [1]
+  prompt_format: plain
+
+# --- tiny random models for tests / pipeline smoke checks (results meaningless) ---
+fake-ouro:
+  builder: loopdetail.tests.fakes:build_fake_ouro
+  adapter: ouro
+  dtype: float32
+  n_loops_trained: 4
+  loops_eval: [1, 2, 3, 4, 5, 6]
+  extrapolation_from: 5
+  probe_loops: [1, 2, 3, 4]
+  h3_target_loops: [2, 3, 4]
+  prompt_format: plain
+
+fake-huginn:
+  builder: loopdetail.tests.fakes:build_fake_huginn
+  adapter: raven
+  dtype: float32
+  n_loops_trained: 8
+  loops_eval: [1, 2, 4, 8, 12]
+  extrapolation_from: 12
+  probe_loops: [1, 2, 4, 8]
+  h3_target_loops: [2, 4, 8]
+  prompt_format: plain
+  options: {state_init: seeded_random, state_seed: 0}
+  experiments:
+    H3: {head_sweep: {layers: all, heads: 2}}

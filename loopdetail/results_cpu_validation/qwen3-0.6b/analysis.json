@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3-dirty",
+    "timestamp_utc": "2026-10-13T14:12:47+00:00",
+    "host": "vm",
+    "versions": {
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "transformers": "5.19.0",
+      "numpy": "2.5.4",
+      "sklearn": "1.9.1",
+      "statsmodels": "0.15.0"
+    },
+    "config": {
+      "model_dir": "loopdetail/results_cpu_validation/qwen3-0.6b"
+    }
+  },
+  "figures": [
+    "figures/B_accuracy_box.png",
+    "figures/B_accuracy_codes.png",
+    "figures/A1_probe_box_hidden.png",
+    "figures/A1_probe_box_k.png",
+    "figures/A1_probe_box_v.png",
+    "figures/A2_sensitivity_box_hidden.png",
+    "figures/A2_sensitivity_box_v.png"
+  ],
+  "B_stats": {
+    "adjacent_mcnemar": [],
+    "note": "single loop count: no loop statistics (non-looped reference)"
+  }
+}

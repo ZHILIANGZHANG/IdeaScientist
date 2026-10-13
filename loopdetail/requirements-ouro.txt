@@ -1,0 +1,3 @@
+# Ouro (remote code written for transformers 4.55; FlashLoop pins 4.56.2) + Qwen3 / Llama-3.2 / OLMo-2 references
+-r requirements.txt
+transformers==4.56.2

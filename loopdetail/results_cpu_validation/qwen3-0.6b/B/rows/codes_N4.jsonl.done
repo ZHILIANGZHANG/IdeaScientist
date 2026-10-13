@@ -1,0 +1,53 @@
+{
+  "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3",
+  "timestamp_utc": "2026-10-13T13:00:42+00:00",
+  "host": "vm",
+  "versions": {
+    "python": "3.13.16",
+    "torch": "2.14.1+cu130",
+    "transformers": "5.19.0",
+    "numpy": "2.5.4",
+    "sklearn": "1.9.1",
+    "statsmodels": "0.15.0"
+  },
+  "config": {
+    "model": {
+      "hf_id": "Qwen/Qwen3-0.6B",
+      "adapter": "hf",
+      "attn_implementation": "sdpa",
+      "dtype": "bfloat16",
+      "n_loops_trained": 1,
+      "loops_eval": [
+        1
+      ],
+      "probe_loops": [
+        1
+      ],
+      "prompt_format": "plain",
+      "name": "qwen3-0.6b"
+    },
+    "profile": "cpu_validation",
+    "experiment": "B",
+    "exp_config": {
+      "contexts_per_cell": 32,
+      "readout": "set"
+    },
+    "chat": false,
+    "adapter": {
+      "name": "qwen3-0.6b",
+      "adapter": "HFDecoderAdapter",
+      "loop_axis": "layer",
+      "n_loops_trained": 1,
+      "n_layers_per_loop": 28,
+      "d_model": 1024,
+      "n_kv_heads": 8,
+      "head_dim": 128,
+      "n_prelude": 0,
+      "n_coda": 0,
+      "kv_mode": "separate_kv",
+      "dtype": "torch.float32",
+      "device": "cpu"
+    },
+    "shard": "codes_N4.jsonl"
+  }
+}

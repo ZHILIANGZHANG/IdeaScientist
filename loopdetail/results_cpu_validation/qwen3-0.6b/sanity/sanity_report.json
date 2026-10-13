@@ -1,0 +1,126 @@
+{
+  "meta": {
+    "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3",
+    "timestamp_utc": "2026-10-13T12:49:50+00:00",
+    "host": "vm",
+    "versions": {
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "transformers": "5.19.0",
+      "numpy": "2.5.4",
+      "sklearn": "1.9.1",
+      "statsmodels": "0.15.0"
+    },
+    "config": {
+      "model": {
+        "hf_id": "Qwen/Qwen3-0.6B",
+        "adapter": "hf",
+        "attn_implementation": "sdpa",
+        "dtype": "bfloat16",
+        "n_loops_trained": 1,
+        "loops_eval": [
+          1
+        ],
+        "probe_loops": [
+          1
+        ],
+        "prompt_format": "plain",
+        "name": "qwen3-0.6b"
+      },
+      "profile": "cpu_validation",
+      "experiment": "sanity",
+      "exp_config": {
+        "n_items": 24,
+        "s1_items": 6,
+        "s3_items": 2,
+        "s4_contexts": 40,
+        "s4_facts_per_context": 8,
+        "s4_min_acc": 0.9
+      },
+      "chat": false,
+      "adapter": {
+        "name": "qwen3-0.6b",
+        "adapter": "HFDecoderAdapter",
+        "loop_axis": "layer",
+        "n_loops_trained": 1,
+        "n_layers_per_loop": 28,
+        "d_model": 1024,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "n_prelude": 0,
+        "n_coda": 0,
+        "kv_mode": "separate_kv",
+        "dtype": "torch.float32",
+        "device": "cpu"
+      }
+    }
+  },
+  "overall": "PASS",
+  "checks": {
+    "S1_readout_equivalence": {
+      "status": "N/A",
+      "reason": "non-looped model"
+    },
+    "S2_published_trend": {
+      "status": "SKIPPED",
+      "reason": "no repro target for this model"
+    },
+    "S3_patch_noop_fp32": {
+      "status": "PASS",
+      "T": 1,
+      "max_abs_logit_diff_noop": 0.0,
+      "min_abs_logit_diff_when_patching_other_values": 1.6450262069702148,
+      "criterion": "no-op diff <= 1e-4 (fp32) and a real patch changes logits"
+    },
+    "S4_probe_current_token": {
+      "status": "PASS",
+      "acc": 1.0,
+      "n_classes": 92,
+      "n_test": 60,
+      "n_train": 256,
+      "criterion": "item identity from V at loop 1 / layer 0 at the item token >= 0.9"
+    },
+    "S5_nocontext_chance": {
+      "status": "PASS",
+      "table": [
+        {
+          "family": "box",
+          "info_type": "detail",
+          "t": 1,
+          "n": 12,
+          "acc": 0.3333333333333333,
+          "tolerance": 0.3225,
+          "ok": true
+        },
+        {
+          "family": "box",
+          "info_type": "gist",
+          "t": 1,
+          "n": 12,
+          "acc": 0.16666666666666666,
+          "tolerance": 0.3225,
+          "ok": true
+        },
+        {
+          "family": "codes",
+          "info_type": "detail",
+          "t": 1,
+          "n": 12,
+          "acc": 0.3333333333333333,
+          "tolerance": 0.3225,
+          "ok": true
+        },
+        {
+          "family": "codes",
+          "info_type": "gist",
+          "t": 1,
+          "n": 12,
+          "acc": 0.16666666666666666,
+          "tolerance": 0.3225,
+          "ok": true
+        }
+      ],
+      "criterion": "|acc - 0.25| <= max(0.10, 2.58*SE) for every (family, info_type, t)"
+    }
+  }
+}

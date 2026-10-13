@@ -1,0 +1,13 @@
+# Common dependencies (install torch for your CUDA first: https://pytorch.org).
+# transformers is pinned per model family; see requirements-ouro.txt / requirements-raven.txt.
+torch>=2.5          # Raven remote code imports torch.nn.attention.flex_attention (2.5+)
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+statsmodels>=0.14
+matplotlib>=3.7
+pyyaml>=6.0
+packaging
+datasets>=2.18      # S2 (ARC) and ExpC (GSM8K) from the HF hub
+accelerate>=0.30
+pytest>=7

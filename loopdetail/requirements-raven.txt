@@ -1,0 +1,4 @@
+# Huginn-0125 and the retrofitted Recurrent-{Llama,OLMo,TinyLlama} checkpoints.
+# The retrofitting repo states its modeling code targets transformers==4.51.0 (KV-cache API change after).
+-r requirements.txt
+transformers==4.51.0

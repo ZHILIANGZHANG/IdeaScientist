@@ -1,0 +1,118 @@
+# Experiment profiles. `full` = A100 main runs, `smoke` = ~5-minute end-to-end pipeline
+# check (results meaningless), `cpu_validation` = reduced real-model run used for
+# CPU_VALIDATION.md. Model-specific overrides live under `experiments:` in models.yaml.
+
+full:
+  seed: 1234
+  families: [box, codes]
+  n_values: [4, 8, 16, 32]
+  contexts_per_cell: 600           # stimuli generated per (family, N); experiments use the first k
+  sanity:
+    n_items: 160                   # S5 uses all of them: 80 per (family, info_type)
+    s1_items: 24
+    s3_items: 3
+    s4_contexts: 40
+    s4_facts_per_context: 8
+    s4_min_acc: 0.9
+    repro_tasks: [arc_easy, arc_challenge]
+    repro_items: 500
+  B:
+    contexts_per_cell: 600
+    readout: capture               # capture | set (S1 checks they agree)
+  A1:
+    contexts_per_cell: 300
+    facts_per_context: 4
+    what: [k, v, hidden]
+    layers: every:4+last           # 'all' | 'every:K[+last]' | [list]
+    C_grid: [0.001, 0.01, 0.1, 1.0, 10.0]
+    cv_folds: 5
+    test_frac: 0.2
+    bootstrap: 1000
+    mdl: false
+  A2:
+    contexts_per_cell: 150
+    layers: all
+    reps: [hidden, v]
+  H3:
+    families: [box]
+    n_values: [8, 16]
+    contexts_per_cell: 150
+    layer_sweep: true
+    head_sweep: {layers: every:4, heads: 4}
+  C:
+    n_items: 300
+    max_new_tokens: 512
+    n_shots: 4
+    annotate_n: 100
+    path: null                     # local GSM8K dir/jsonl; null -> HF openai/gsm8k
+
+smoke:
+  seed: 1234
+  families: [box, codes]
+  n_values: [4, 8]
+  contexts_per_cell: 20
+  sanity:
+    n_items: 12
+    s1_items: 4
+    s3_items: 2
+    s4_contexts: 20
+    s4_facts_per_context: 8
+    s4_min_acc: 0.9
+    repro_tasks: [arc_easy]
+    repro_items: 20
+  B: {contexts_per_cell: 20, readout: capture}
+  A1:
+    contexts_per_cell: 20
+    facts_per_context: 4
+    what: [k, v, hidden]
+    layers: all
+    C_grid: [0.1, 1.0]
+    cv_folds: 2
+    test_frac: 0.25
+    bootstrap: 50
+    mdl: true
+  A2: {contexts_per_cell: 4, layers: all, reps: [hidden, v]}
+  H3:
+    families: [box]
+    n_values: [4]
+    contexts_per_cell: 3
+    layer_sweep: true
+    head_sweep: {layers: [0], heads: 2}
+  C:
+    n_items: 3
+    max_new_tokens: 24
+    n_shots: 1
+    annotate_n: 4
+    path: null
+
+cpu_validation:
+  seed: 1234
+  families: [box, codes]
+  n_values: [4, 8, 16]
+  contexts_per_cell: 48
+  sanity:
+    n_items: 24
+    s1_items: 6
+    s3_items: 2
+    s4_contexts: 40
+    s4_facts_per_context: 8
+    s4_min_acc: 0.9
+  B:
+    contexts_per_cell: 32
+    readout: set
+  A1:
+    families: [box]
+    contexts_per_cell: 48
+    facts_per_context: 4
+    what: [k, v, hidden]
+    layers: all
+    C_grid: [0.01, 0.1, 1.0, 10.0]
+    cv_folds: 5
+    test_frac: 0.25
+    bootstrap: 500
+    mdl: false
+  A2:
+    families: [box]
+    contexts_per_cell: 16
+    layers: all
+    reps: [hidden, v]

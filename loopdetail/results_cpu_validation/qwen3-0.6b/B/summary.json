@@ -1,0 +1,276 @@
+{
+  "meta": {
+    "git_hash": "82a98a08772eab08d11fd097445afa4a8eaaa5b3",
+    "timestamp_utc": "2026-10-13T13:16:45+00:00",
+    "host": "vm",
+    "versions": {
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "transformers": "5.19.0",
+      "numpy": "2.5.4",
+      "sklearn": "1.9.1",
+      "statsmodels": "0.15.0"
+    },
+    "config": {
+      "model": {
+        "hf_id": "Qwen/Qwen3-0.6B",
+        "adapter": "hf",
+        "attn_implementation": "sdpa",
+        "dtype": "bfloat16",
+        "n_loops_trained": 1,
+        "loops_eval": [
+          1
+        ],
+        "probe_loops": [
+          1
+        ],
+        "prompt_format": "plain",
+        "name": "qwen3-0.6b"
+      },
+      "profile": "cpu_validation",
+      "experiment": "B",
+      "exp_config": {
+        "contexts_per_cell": 32,
+        "readout": "set"
+      },
+      "chat": false,
+      "adapter": {
+        "name": "qwen3-0.6b",
+        "adapter": "HFDecoderAdapter",
+        "loop_axis": "layer",
+        "n_loops_trained": 1,
+        "n_layers_per_loop": 28,
+        "d_model": 1024,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "n_prelude": 0,
+        "n_coda": 0,
+        "kv_mode": "separate_kv",
+        "dtype": "torch.float32",
+        "device": "cpu"
+      }
+    }
+  },
+  "table": [
+    {
+      "family": "box",
+      "info_type": "detail",
+      "N": 4,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 10.19153445694974,
+      "margin_cal": 10.32848599288991,
+      "nocontext_acc": 0.25,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "box",
+      "info_type": "detail",
+      "N": 8,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 11.135825985089468,
+      "margin_cal": 11.157862597123312,
+      "nocontext_acc": 0.3125,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "box",
+      "info_type": "detail",
+      "N": 16,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 10.201012529949367,
+      "margin_cal": 10.218870215634524,
+      "nocontext_acc": 0.25,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "box",
+      "info_type": "gist",
+      "N": 4,
+      "t": 1,
+      "n": 32,
+      "acc": 0.78125,
+      "acc_ci95": [
+        0.6124500620603575,
+        0.8897616380720099
+      ],
+      "acc_cal": 0.84375,
+      "margin": 2.2578557450324297,
+      "margin_cal": 2.80150474794209,
+      "nocontext_acc": 0.25,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "box",
+      "info_type": "gist",
+      "N": 8,
+      "t": 1,
+      "n": 32,
+      "acc": 0.96875,
+      "acc_ci95": [
+        0.8425573603233156,
+        0.9944621398972968
+      ],
+      "acc_cal": 0.9375,
+      "margin": 3.4194847997277975,
+      "margin_cal": 3.532991787418723,
+      "nocontext_acc": 0.28125,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "box",
+      "info_type": "gist",
+      "N": 16,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 4.210432818159461,
+      "margin_cal": 4.200686765834689,
+      "nocontext_acc": 0.21875,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "detail",
+      "N": 4,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 6.959545590332709,
+      "margin_cal": 6.727036960772239,
+      "nocontext_acc": 0.375,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "detail",
+      "N": 8,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 7.947278256644495,
+      "margin_cal": 7.53112053417135,
+      "nocontext_acc": 0.21875,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "detail",
+      "N": 16,
+      "t": 1,
+      "n": 32,
+      "acc": 1.0,
+      "acc_ci95": [
+        0.8928208002353198,
+        1.0
+      ],
+      "acc_cal": 1.0,
+      "margin": 7.8711473896401,
+      "margin_cal": 8.121468256344087,
+      "nocontext_acc": 0.1875,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "gist",
+      "N": 4,
+      "t": 1,
+      "n": 32,
+      "acc": 0.875,
+      "acc_ci95": [
+        0.7193169437055493,
+        0.9502986564709404
+      ],
+      "acc_cal": 0.875,
+      "margin": 1.0351883545517921,
+      "margin_cal": 0.9951777681708336,
+      "nocontext_acc": 0.25,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "gist",
+      "N": 8,
+      "t": 1,
+      "n": 32,
+      "acc": 0.78125,
+      "acc_ci95": [
+        0.6124500620603575,
+        0.8897616380720099
+      ],
+      "acc_cal": 0.59375,
+      "margin": 0.4154270589351654,
+      "margin_cal": 0.132438063621521,
+      "nocontext_acc": 0.25,
+      "extrapolated": false,
+      "chance": 0.25
+    },
+    {
+      "family": "codes",
+      "info_type": "gist",
+      "N": 16,
+      "t": 1,
+      "n": 32,
+      "acc": 0.75,
+      "acc_ci95": [
+        0.5789344086290853,
+        0.8674759914885746
+      ],
+      "acc_cal": 0.5625,
+      "margin": 0.4089609384536743,
+      "margin_cal": 0.1626729816198349,
+      "nocontext_acc": 0.34375,
+      "extrapolated": false,
+      "chance": 0.25
+    }
+  ],
+  "readout": "set",
+  "loops": [
+    1
+  ]
+}
